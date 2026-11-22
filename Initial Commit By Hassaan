@@ -1,0 +1,43 @@
+#include <SFML/Graphics.hpp>
+#include <optional>
+#include <iostream>
+
+// 1. Function to read keys and window events
+void handleInput(sf::RenderWindow& window) {
+    while (const std::optional event = window.pollEvent()) {
+        if (event->is<sf::Event::Closed>()) {
+            window.close(); // Requirement: Closing the window ends the program
+        }
+    }
+}
+
+// 2. Function to update game logic (move ball, bricks, etc.)
+void updateGame() {
+    // Game logic will go here later
+}
+
+// 3. Function to draw everything
+void drawGame(sf::RenderWindow& window) {
+    // Drawing bricks, paddle, ball, and text will go here later
+}
+
+int main() {
+    // Requirement: 600x700 window, titled "Block Buster"
+    sf::RenderWindow window(sf::VideoMode({ 600, 700 }), "Block Buster");
+
+    // Requirement: Frame limit of 60
+    window.setFramerateLimit(60);
+
+    // The Game Loop
+    while (window.isOpen()) {
+        // Requirement: Call the three functions in order
+        handleInput(window);
+        updateGame();
+
+        window.clear(sf::Color(25, 25, 45)); // Background color from the PDF
+        drawGame(window);
+        window.display();
+    }
+
+    return 0;
+}
