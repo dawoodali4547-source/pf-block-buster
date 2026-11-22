@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="pf-block-buster/pf-block-buster.vcxproj" Id="897cbd9a-f3c6-4316-b635-871e854ff88c" />
+</Solution>
