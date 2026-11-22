@@ -47,7 +47,8 @@ int main() {
         }
     }
     fin.close();
-   
+
+    
     while (window.isOpen()) {
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
@@ -55,6 +56,7 @@ int main() {
             }
         }
         drawBricks(window, bricks, rows, cols);
+
         window.display();
     }
 
