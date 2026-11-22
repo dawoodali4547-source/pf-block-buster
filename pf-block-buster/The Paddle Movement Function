@@ -1,0 +1,27 @@
+void updatePaddle(float& paddleX, float paddleY, float paddleW, int windX, RectangleShape& paddle)
+{
+    //PADDLE MOVEMENT
+    if (Keyboard::isKeyPressed(Keyboard::Key::Left) || Keyboard::isKeyPressed(Keyboard::Key::A))
+    {
+        paddleX = paddleX - 8.f;
+        paddle.setPosition({ paddleX, paddleY });
+        if (paddleX < 3.f)
+        {
+            paddleX = 3.f;
+            paddle.setPosition({ paddleX, paddleY });
+
+        }
+
+    }
+    if (Keyboard::isKeyPressed(Keyboard::Key::Right) || Keyboard::isKeyPressed(Keyboard::Key::D))
+    {
+        paddleX = paddleX + 8.f;
+        paddle.setPosition({ paddleX, paddleY });
+        if (paddleX > windX - paddleW - 3.f)
+        {
+            paddleX = windX - paddleW - 3.f;
+            paddle.setPosition({ paddleX, paddleY });
+
+        }
+    }
+}
