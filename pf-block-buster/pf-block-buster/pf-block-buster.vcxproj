@@ -145,6 +145,9 @@
   <ItemGroup>
     <ClCompile Include="main-loop.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="level.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
