@@ -1,0 +1,155 @@
+void updateBall(bool isLaunched, float& ballX, float& ballY, float ballD, float paddleX, float paddleY, float paddleW, int windX, int windY, float& dx, float& dy, CircleShape& ball, float &paddleH, int rows, int cols, int bricks[][100], int& score)
+{
+
+    int row, col;
+
+    //BALL MOVEMENT BEFORE LAUNCH
+    if (isLaunched == false)
+    {
+        ballX = paddleX + 44.f;
+        ballY = paddleY - ballD;
+        ball.setPosition({ ballX, ballY });
+    }
+
+    //BALL MOVEMENT AFTER LAUNCH
+    if (isLaunched == true)
+    {                     
+        int hitRow = -1, hitCol = -1;
+        float cx = ballX, cy = ballY;       
+        // Horizontal Reversing or Continuation
+        ballX = ballX + dx;
+       
+        bool hit = false;
+
+        //Left/Right Walls Check
+        if (ballX > windX - ballD || ballX < 0.f)
+        {
+            ballX = ballX - dx;
+            dx = -dx;
+        }
+
+        float cornersX[4] = { ballX, ballX + ballD, ballX + ballD, ballX };
+        float cornersY[4] = { ballY, ballY, ballY + ballD, ballY + ballD };
+
+        for (int i = 0; i < 4; i++)
+        {
+            cx = cornersX[i];
+            cy = cornersY[i];
+            if (cx < 600 && cx >= 0 && cy < 300 && cy >= 100)
+            {
+                row = (cy - 100) / 25;
+                col = (cx) / 60;
+                if (bricks[row][col] > 0)
+                {
+                    if (row != hitRow || col != hitCol)
+                    {
+                        bricks[row][col]--;
+                        if (bricks[row][col] == 0)
+                        {
+                            score = score + 50;
+                        }
+                        else
+                        {
+                            score = score + 10;
+                        }
+                        cout << "Score: " << score << endl;
+                        hitRow = row;
+                        hitCol = col;
+                    }
+                    hit = true;
+                }
+                
+            }
+        }
+        if (hit == true)
+        {
+                ballX = ballX - dx;
+                dx = -dx;
+        }
+           
+        //Vertical Reversing or Continuation
+        hitRow = -1; 
+        hitCol = -1;
+        ballY = ballY + dy;
+        cx = ballX, cy = ballY;
+        hit = false;
+
+        //Ceiling Check
+        if (ballY < 50.f)
+        {
+            ballY = ballY - dy;
+            dy = -dy;
+        }
+
+        float cornersX2[4] = { ballX, ballX + ballD, ballX + ballD, ballX };
+        float cornersY2[4] = { ballY, ballY, ballY + ballD, ballY + ballD };
+
+        for (int i = 0; i < 4; i++)
+        {
+            cy = cornersY2[i];
+            cx = cornersX2[i];
+            if (cx < 600 && cx >= 0 && cy < 300 && cy >= 100)
+            {
+                row = (cy - 100) / 25;
+                col = (cx) / 60;
+                if (bricks[row][col] > 0)
+                {               
+                    if (row != hitRow || col != hitCol)
+                    {
+                        bricks[row][col]--;
+                        if (bricks[row][col] == 0)
+                        {
+                            score = score + 50;
+                        }
+                        else 
+                        {
+                            score = score + 10;
+                        }
+                        cout << "Score: " << score << endl;
+                        hitRow = row;
+                        hitCol = col;
+                    }
+                    hit = true;
+                }
+               
+
+            }
+        }
+        if (hit == true)
+        {
+                ballY = ballY - dy;
+                dy = -dy;
+        }
+
+       
+
+       
+        // Reversing After Pad Collision
+        if (ballY + ballD >= paddleY && ballX + ballD >= paddleX && ballX <= paddleX + paddleW && dy > 0.f && ballY <= paddleY + paddleH)
+        {
+          
+            ballY = 638.f;           
+             
+            //Paddle Part Measurement
+            int part = (ballX + 6 - paddleX) * 4 / paddleW;
+            if (part < 0)
+            {
+                part = 0;
+            }
+            else if (part > 3)
+            {
+                part = 3;
+            }
+            if (part == 0)
+                dx = -6.f;
+            else if (part == 1)
+                dx = -3.f;
+            else if (part == 2)
+                dx = 3.f;
+            else if (part == 3)
+                dx = 6.f;
+            dy = -dy;
+        }
+        ball.setPosition({ ballX, ballY });
+    }
+}
