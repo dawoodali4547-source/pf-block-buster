@@ -275,7 +275,7 @@ int main()
 
     // Draw temporary bricks
     int rows = 0, cols = 0;
-    ifstream fin("bricks.txt");
+    ifstream fin("D:\\BlockBuster_Hassaan\\bricks.txt");
     if (!fin)
     {
         cout << "Your file is not found" << endl;
