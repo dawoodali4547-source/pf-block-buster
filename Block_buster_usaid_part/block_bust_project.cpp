@@ -1,8 +1,10 @@
 #include<iostream>
+#include <filesystem>
 #include <SFML/Graphics.hpp>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
+#include<string>
 using namespace sf;
 using namespace std;
 
@@ -252,13 +254,30 @@ void updateBall(bool isLaunched, float& ballX, float& ballY, float ballD, float 
     }
 }
 
-void renderGame(RenderWindow& window, int bricks[][100], int rows, int cols, RectangleShape& paddle, CircleShape& ball)
+void showScore(RenderWindow& window, int score, sf::Font& font, int lives)
+{
+    sf::Text scoreText(font); // Pass font directly into constructor
+    scoreText.setString("Score: " + std::to_string(score));
+    scoreText.setCharacterSize(22);
+    scoreText.setFillColor(sf::Color::White);
+    scoreText.setPosition({ 20.f, 12.f }); // Use curly braces {x, y}
+    window.draw(scoreText);
+
+    sf::Text livesText(font); // Pass font directly into constructor
+    livesText.setString("Lives: " + std::to_string(lives));
+    livesText.setCharacterSize(22);
+    livesText.setFillColor(sf::Color::White);
+    livesText.setPosition({ 460.f, 12.f }); // Placed on top-right inside 50px HUD
+    window.draw(livesText);
+}
+void renderGame(RenderWindow& window, int bricks[][100], int rows, int cols, RectangleShape& paddle, CircleShape& ball,int score,int lives, sf::Font& font)
 {
     window.clear(Color(15, 15, 40));
 
     drawBricks(window, bricks, rows, cols); // <-- DRAW BRICKS EVERY FRAME
     window.draw(paddle);
     window.draw(ball);
+    showScore(window, score, font, lives);
 
     window.display();
 }
@@ -290,7 +309,12 @@ int main()
         }
     }
     fin.close();
-
+	sf::Font font;
+    if (!font.openFromFile("C://Windows//Fonts//Calibri.ttf"))
+    {
+        std::cout << "Could not load font!"<< std::endl;
+    }
+    std::cout << "Exists: " << std::filesystem::exists("C://Windows//Fonts//Calibri.ttf") << "\n";   
 
     //Randomly Choosing Launching Left/Right Direction
     srand(time(0));
@@ -324,6 +348,7 @@ int main()
 
     //Score Counting
     int score = 0;
+	int lives = 3;
 
     while (window.isOpen())
     {
@@ -331,7 +356,8 @@ int main()
         handleEvents(window, isLaunched, dx, dy);
         updatePaddle(paddleX, paddleY, paddleW, windX, paddle);
         updateBall(isLaunched, ballX, ballY, ballD, paddleX, paddleY, paddleW, windX, windY, dx, dy, ball, paddleH, rows, cols, bricks, score);
-        renderGame(window, bricks, rows, cols, paddle, ball);
+     
+        renderGame(window, bricks, rows, cols, paddle, ball, score, lives, font);
     }
 
     return 0;
