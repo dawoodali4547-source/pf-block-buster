@@ -1,664 +1,778 @@
+#include<iostream>
 #include <SFML/Graphics.hpp>
-#include <iostream>
-#include <fstream>
 #include <cstdlib>
 #include <ctime>
-#include <string>
-#include <optional>
+#include <fstream>
+#include<string>
 using namespace sf;
 using namespace std;
 
-// ============ Constants from spec ============
-const float WINDOW_W = 600.f, WINDOW_H = 700.f;
-const int   ROWS = 8, COLS = 10;
-const float BRICK_W = 60.f, BRICK_H = 25.f, BRICKS_Y = 100.f;
-const float PADDLE_W = 200.f, PADDLE_H = 14.f, PADDLE_Y = 650.f;
-const float PADDLE_SPEED = 20.f;
-const float BALL_R = 6.f, BALL_D = 12.f;
-const int   HUD_H = 50;
-const int   START_LIVES = 3;
+// gameState values: 0 = menu, 1 = playing, 2 = game over, 3 = you win
+// menuChoice values: 0 = new game, 1 = continue, 2 = exit
+// puType values: 1 = wide paddle, 2 = extra life, 3 = slow ball
 
-// Power-up constants (bonus)
-const int   MAX_POWERUPS = 8;
-const int   PU_WIDE = 1, PU_LIFE = 2, PU_SLOW = 3;
-const float PU_SPEED = 3.f;
-const float PU_SIZE = 20.f;
-const int   PU_DURATION = 600;
-
-// Game states
-const int MENU = 0, PLAYING = 1, GAME_OVER = 2, YOU_WIN = 3;
-const int OPT_NEW = 0, OPT_CONT = 1, OPT_EXIT = 2;
-
-// ============ Data ============
-struct PowerUp {
-    float x, y;
-    int type;
-    bool active;
-};
-
-struct Game {
-    int bricks[ROWS][COLS];
-    float paddleX, ballX, ballY;
-    float paddleWidth;
-    float dx, dy;
-    float slowMul;
-    bool isLaunched;
-    int score, lives, state, menuChoice;
-    string menuMessage;
-    PowerUp powerups[MAX_POWERUPS];
-    int wideTimer, slowTimer;
-};
-
-// ============ Helpers ============
-bool loadLevel(int bricks[ROWS][COLS]) 
+bool loadLevel(int bricks[][10], int& Rows, int& Cols)
 {
     ifstream fin("level.txt");
-    if (!fin) 
-        return false;
-    int r, c;
-    if (!(fin >> r >> c)) 
-        return false;
-    for (int i = 0; i < ROWS; i++)      //initializing 2d array bricks with 0
-        for (int j = 0; j < COLS; j++) 
-            bricks[i][j] = 0;
-    for (int i = 0; i < r; i++)
-        for (int j = 0; j < c; j++)     //getting values from file & putting in array 
+    if (!fin) return false;
+
+    Rows = 0;
+    Cols = 0;
+    if (!(fin >> Rows >> Cols)) return false;
+
+    if (Rows > 8)  Rows = 8;
+    if (Cols > 10) Cols = 10;
+
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 10; j++)
         {
-            int v;
-            if (!(fin >> v))            //if any value is missing in a file, it left the next part of file without reading
-                return true;            // to protect it from reading garbage.
-            if (i < ROWS && j < COLS) 
-                bricks[i][j] = v;
+            bricks[i][j] = 0;
         }
+    }
+
+    for (int i = 0; i < Rows; i++)
+    {
+        for (int j = 0; j < Cols; j++)
+        {
+            fin >> bricks[i][j];
+        }
+    }
+    fin.close();
     return true;
 }
 
-bool anyBricksLeft(int b[ROWS][COLS]) 
+void drawBricks(sf::RenderWindow& window, int bricks[][10], int& Rows, int& Cols)
 {
-    for (int i = 0; i < ROWS; i++)
-        for (int j = 0; j < COLS; j++)
-            if (b[i][j] > 0) 
-                return true;
-    return false;
-}
+    const float BRICK_W = 60.f;
+    const float BRICK_H = 25.f;
+    const float BRICKS_Y = 100.f;
+    sf::Color colors[4] = { sf::Color(25, 25, 45),
+                           sf::Color::Green,
+                           sf::Color::Yellow,
+                           sf::Color::Red };
+    sf::RectangleShape brick({ BRICK_W - 2.f, BRICK_H - 2.f });
 
-void clearPowerUps(Game& g) 
-{
-    for (int i = 0; i < MAX_POWERUPS; i++) 
-        g.powerups[i].active = false;
-
-    g.wideTimer = 0;
-    g.slowTimer = 0;
-    g.paddleWidth = PADDLE_W;
-    g.slowMul = 1.0f;
-}
-
-void resetBall(Game& g) 
-{
-    g.isLaunched = false;
-    g.ballX = g.paddleX + (g.paddleWidth - BALL_D) * 0.5f;         //ball to centre of paddle x
-    g.ballY = PADDLE_Y - BALL_D;                                   //ball to centre of paddle y
-    g.dx = 0.f;
-    g.dy = 0.f;
-}
-
-void startNewGame(Game& g) {
-    g.score = 0;
-    g.lives = START_LIVES;
-    g.paddleX = 250.f;
-
-    if (!loadLevel(g.bricks)) {              // if now file found
-        g.state = MENU;
-        g.menuMessage = "level.txt is missing";
-        return;
-    }
-
-    clearPowerUps(g);
-    resetBall(g);
-    g.state = PLAYING;
-    g.menuMessage = "";
-}
-
-bool saveGame(Game& g) {
-    ofstream fout("savegame.txt");
-    if (!fout)
-        return false;
-    fout << g.score << " " << g.lives << "\n";
-    for (int i = 0; i < ROWS; i++) 
+    for (int r = 0; r < Rows; r++)
     {
-        for (int j = 0; j < COLS; j++) 
+        for (int c = 0; c < Cols; c++)
         {
-            fout << g.bricks[i][j];
-            if (j < COLS - 1) 
-                fout << " ";
+            if (bricks[r][c] == 0) {
+                continue;
+            }
+
+            brick.setFillColor(colors[bricks[r][c]]);
+            brick.setPosition({ c * BRICK_W + 1.f, BRICKS_Y + r * BRICK_H + 1.f });
+            window.draw(brick);
+        }
+    }
+}
+
+bool saveGame(int score, int lives, int bricks[][10], int Rows, int Cols)
+{
+    ofstream fout("savegame.txt");
+    if (!fout) return false;
+
+    fout << score << " " << lives << "\n";
+    for (int r = 0; r < Rows; r++)
+    {
+        for (int c = 0; c < Cols; c++)
+        {
+            fout << bricks[r][c];
+            if (c < Cols - 1) fout << " ";
         }
         fout << "\n";
     }
     return true;
 }
 
-bool loadSave(Game& g) {
+void clearSave()
+{
+    ofstream f("savegame.txt");
+}
+
+bool loadSave(int& gameState, int& score, int& lives, int bricks[][10],
+    int& Rows, int& Cols,
+    float& paddleX, float& paddleW, float& ballX, float& ballY,
+    bool& isLaunched, float& dx, float& dy)
+{
     ifstream fin("savegame.txt");
+    if (!fin) return false;
 
-    if (!fin) 
-        return false;
+    int s = 0, l = 0;
+    if (!(fin >> s >> l)) return false;
 
-    int s, l;
+    int temp[8][10];
+    for (int r = 0; r < 8; r++)
+    {
+        for (int c = 0; c < 10; c++)
+        {
+            if (!(fin >> temp[r][c])) return false;
+        }
+    }
+    fin.close();
 
-    if (!(fin >> s >> l)) 
-        return false;
+    score = s;
+    lives = l;
+    for (int r = 0; r < 8; r++)
+    {
+        for (int c = 0; c < 10; c++)
+        {
+            bricks[r][c] = temp[r][c];
+        }
+    }
 
-    int temp[ROWS][COLS];
-    for (int i = 0; i < ROWS; i++)
-        for (int j = 0; j < COLS; j++)
-            if (!(fin >> temp[i][j])) 
-                return false;
-    g.score = s;
-    g.lives = l;
-    for (int i = 0; i < ROWS; i++)
-        for (int j = 0; j < COLS; j++) 
-            g.bricks[i][j] = temp[i][j];
-
-    g.paddleX = 250.f;
-    clearPowerUps(g);
-    resetBall(g);
-    g.state = PLAYING;
-    g.menuMessage = "";
+    paddleX = 250.f;
+    paddleW = 100.f;
+    isLaunched = false;
+    ballX = paddleX + (paddleW - 12.f) * 0.5f;
+    ballY = 650.f - 12.f;
+    dx = 0.f;
+    dy = 0.f;
+    gameState = 1;
     return true;
 }
 
-void clearSave() {
-    ofstream f("savegame.txt"); //called when user win,lose
-    //it clear the save file
+bool startNewGame(int& gameState, int& score, int& lives, int bricks[][10],
+    int& Rows, int& Cols,
+    float& paddleX, float& paddleW, float& ballX, float& ballY,
+    bool& isLaunched, float& dx, float& dy,
+    bool puActive[], int& wideTimer, int& slowTimer)
+{
+    score = 0;
+    lives = 3;
+    paddleX = 250.f;
+    paddleW = 100.f;
+    isLaunched = false;
+    dx = 0.f;
+    dy = 0.f;
+    for (int i = 0; i < 8; i++) puActive[i] = false;
+    wideTimer = 0;
+    slowTimer = 0;
+
+    if (!loadLevel(bricks, Rows, Cols)) return false;
+
+    ballX = paddleX + (paddleW - 12.f) * 0.5f;
+    ballY = 650.f - 12.f;
+    gameState = 1;
+    return true;
 }
 
-int pointBrick(float cx, float cy, int b[ROWS][COLS]) 
+void spawnPowerUp(float cx, float cy, bool puActive[], float puX[], float puY[], int puType[])
 {
-    if (cx < 0 || cx >= WINDOW_W) 
-        return -1;
-    if (cy < BRICKS_Y || cy >= BRICKS_Y + ROWS * BRICK_H) 
-        return -1;
-    int col = (int)(cx / BRICK_W);
-    int row = (int)((cy - BRICKS_Y) / BRICK_H);
-    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) 
-        return -1;
-    if (b[row][col] <= 0) 
-        return -1;
-    return row * COLS + col;
-}
-
-void spawnPowerUp(Game& g, float cx, float cy) 
-{
-    if (rand() % 100 >= 25) 
-        return;
-    for (int i = 0; i < MAX_POWERUPS; i++) 
+    if (rand() % 100 >= 25) return;
+    for (int i = 0; i < 8; i++)
     {
-        if (!g.powerups[i].active) 
+        if (!puActive[i])
         {
-            g.powerups[i].active = true;
-            g.powerups[i].x = cx - PU_SIZE * 0.5f;
-            g.powerups[i].y = cy - PU_SIZE * 0.5f;
-            g.powerups[i].type = PU_WIDE + (rand() % 3);
+            puActive[i] = true;
+            puX[i] = cx - 10.f;
+            puY[i] = cy - 10.f;
+            puType[i] = 1 + (rand() % 3);
             return;
         }
     }
 }
 
-bool damageCorners(Game& g) 
+void handleEvents(RenderWindow& window, int& gameState, int& menuChoice, string& menuMessage,
+    bool& isLaunched, float& dx, float& dy,
+    int& score, int& lives, int bricks[][10], int& Rows, int& Cols,
+    float& paddleX, float& paddleW, float& ballX, float& ballY,
+    bool puActive[], int& wideTimer, int& slowTimer)
 {
-    float cx[4];
-    float cy[4];
-    cx[0] = g.ballX;            cy[0] = g.ballY;               //four edges of ball (x,y)
-    cx[1] = g.ballX + BALL_D;   cy[1] = g.ballY;
-    cx[2] = g.ballX + BALL_D;   cy[2] = g.ballY + BALL_D;
-    cx[3] = g.ballX;            cy[3] = g.ballY + BALL_D;
-
-    int ids[4] = { -1, -1, -1, -1 };
-    int n = 0;
-    bool any = false;
-
-    for (int i = 0; i < 4; i++) 
+    while (const std::optional event = window.pollEvent())
     {
-        int id = pointBrick(cx[i], cy[i], g.bricks);
-        if (id < 0) 
-            continue;
-        any = true;
-
-        bool dup = false;
-        for (int k = 0; k < n; k++) 
+        if (event->is<Event::Closed>())
         {
-            if (ids[k] == id) 
-            { 
-                dup = true; 
-                break; 
+            window.close();
+        }
+
+        // Launching the ball — your original style (isKeyPressed inside event loop)
+        if (gameState == 1 && isLaunched == false)
+        {
+            if (Keyboard::isKeyPressed(Keyboard::Key::Space))
+            {
+                isLaunched = true;
+                dy = -5.f;
+                if (rand() % 2 == 0) dx = -3.f;
+                else                 dx = 3.f;
             }
         }
-        if (dup) 
-            continue;
 
-        ids[n] = id;
-        n = n + 1;
-
-        int r = id / COLS;
-        int c = id % COLS;
-        g.bricks[r][c] = g.bricks[r][c] - 1;
-
-        if (g.bricks[r][c] == 0) 
+        if (const auto* keyPressed = event->getIf<Event::KeyPressed>())
         {
-            g.score = g.score + 50;
-            spawnPowerUp(g,c * BRICK_W + BRICK_W * 0.5f,BRICKS_Y + r * BRICK_H + BRICK_H * 0.5f);
-        }
-        else 
-        {
-            g.score = g.score + 10;
-        }
-    }
-    return any;
-}
-
-// ============ Input ============
-void handleInput(RenderWindow& window, Game& g) {
-    optional<Event> opt = window.pollEvent();
-    while (opt) {
-        Event ev = *opt;   // copy event, 
-
-        if (ev.is<Event::Closed>()) {
-            window.close();
-            return;
-        }
-        if (ev.is<Event::KeyPressed>()) {
-            
-            Keyboard::Key code = ev.getIf<Event::KeyPressed>()->code;
-
-            if (g.state == MENU) {
-                if (code == Keyboard::Key::Up)   g.menuChoice = (g.menuChoice + 2) % 3;
-                if (code == Keyboard::Key::Down) g.menuChoice = (g.menuChoice + 1) % 3;
-                if (code == Keyboard::Key::Enter) {
-                    if (g.menuChoice == OPT_NEW) {
-                        startNewGame(g);
+            if (gameState == 0)  // menu
+            {
+                if (keyPressed->code == Keyboard::Key::Up)
+                {
+                    menuChoice = (menuChoice + 2) % 3;
+                    menuMessage = "";
+                }
+                else if (keyPressed->code == Keyboard::Key::Down)
+                {
+                    menuChoice = (menuChoice + 1) % 3;
+                    menuMessage = "";
+                }
+                else if (keyPressed->code == Keyboard::Key::Enter)
+                {
+                    if (menuChoice == 0)  // new game
+                    {
+                        if (!startNewGame(gameState, score, lives, bricks, Rows, Cols,
+                            paddleX, paddleW, ballX, ballY, isLaunched, dx, dy,
+                            puActive, wideTimer, slowTimer))
+                            menuMessage = "level.txt not found";
+                        else
+                            menuMessage = "";
                     }
-                    else if (g.menuChoice == OPT_CONT) {
-                        if (!loadSave(g)) g.menuMessage = "No saved game";
+                    else if (menuChoice == 1)  // continue
+                    {
+                        if (!loadSave(gameState, score, lives, bricks, Rows, Cols,
+                            paddleX, paddleW, ballX, ballY, isLaunched, dx, dy))
+                            menuMessage = "No saved game";
+                        else
+                            menuMessage = "";
                     }
-                    else if (g.menuChoice == OPT_EXIT) {
+                    else if (menuChoice == 2)  // exit
+                    {
                         window.close();
                         return;
                     }
                 }
             }
-            else if (g.state == PLAYING) {
-                if (code == Keyboard::Key::Space) {
-                    if (!g.isLaunched) {
-                        g.isLaunched = true;
-                        g.dy = -5.f;
-                        if (rand() % 2 == 0) g.dx = -3.f;
-                        else                 g.dx = 3.f;
-                    }
-                }
-                if (code == Keyboard::Key::Escape) {
-                    saveGame(g);
-                    g.state = MENU;
-                    g.menuChoice = 0;
-                    g.menuMessage = "Game saved";
+            else if (gameState == 1)  // playing
+            {
+                if (keyPressed->code == Keyboard::Key::Escape)
+                {
+                    saveGame(score, lives, bricks, Rows, Cols);
+                    gameState = 0;
+                    menuChoice = 0;
+                    menuMessage = "Game saved";
                 }
             }
-            else {
-                if (code == Keyboard::Key::Enter) {
+            else  // game over or you win
+            {
+                if (keyPressed->code == Keyboard::Key::Enter)
+                {
                     clearSave();
-                    g.state = MENU;
-                    g.menuChoice = 0;
-                    g.menuMessage = "";
+                    gameState = 0;
+                    menuChoice = 0;
+                    menuMessage = "";
                 }
             }
         }
-
-        opt = window.pollEvent();
     }
 }
 
-// ============ Update ============
-void updatePaddle(Game& g) {
-    if (Keyboard::isKeyPressed(Keyboard::Key::Left) ||
-        Keyboard::isKeyPressed(Keyboard::Key::A))
-        g.paddleX = g.paddleX - PADDLE_SPEED;
+void updatePaddle(float& paddleX, float paddleY, float paddleW, int windX, RectangleShape& paddle)
+{
+    if (Keyboard::isKeyPressed(Keyboard::Key::Left) || Keyboard::isKeyPressed(Keyboard::Key::A))
+    {
+        paddleX = paddleX - 8.f;
+    }
+    if (Keyboard::isKeyPressed(Keyboard::Key::Right) || Keyboard::isKeyPressed(Keyboard::Key::D))
+    {
+        paddleX = paddleX + 8.f;
+    }
 
-    if (Keyboard::isKeyPressed(Keyboard::Key::Right) ||
-        Keyboard::isKeyPressed(Keyboard::Key::D))
-        g.paddleX = g.paddleX + PADDLE_SPEED;
+    if (paddleX < 0.f) paddleX = 0.f;
+    if (paddleX > windX - paddleW) paddleX = windX - paddleW;
 
-    if (g.paddleX < 0.f) g.paddleX = 0.f;
-    if (g.paddleX > WINDOW_W - g.paddleWidth)
-        g.paddleX = WINDOW_W - g.paddleWidth;
+    paddle.setPosition({ paddleX, paddleY });
 }
 
-void updateBall(Game& g) {
-    if (!g.isLaunched) {
-        g.ballX = g.paddleX + (g.paddleWidth - BALL_D) * 0.5f;
-        g.ballY = PADDLE_Y - BALL_D;
+void updateBall(bool& isLaunched, float& ballX, float& ballY, float ballD,
+    float paddleX, float paddleY, float paddleW, float paddleH,
+    int windX, int windY,
+    float& dx, float& dy, CircleShape& ball,
+    int rows, int cols, int bricks[][10], int& score,
+    bool puActive[], float puX[], float puY[], int puType[],
+    int slowTimer)
+{
+    if (isLaunched == false)
+    {
+        ballX = paddleX + (paddleW - ballD) * 0.5f;
+        ballY = paddleY - ballD;
+        ball.setPosition({ ballX, ballY });
         return;
     }
 
-    float stepX = g.dx * g.slowMul;
-    g.ballX = g.ballX + stepX;
-    if (g.ballX < 0.f) {
-        g.ballX = g.ballX - stepX;
-        g.dx = -g.dx;
-    }
-    if (g.ballX + BALL_D > WINDOW_W) {
-        g.ballX = g.ballX - stepX;
-        g.dx = -g.dx;
-    }
-    if (damageCorners(g)) {
-        g.ballX = g.ballX - stepX;
-        g.dx = -g.dx;
+    // Slow-motion step size
+    float stepX = dx;
+    float stepY = dy;
+    if (slowTimer > 0)
+    {
+        stepX = dx * 0.5f;
+        stepY = dy * 0.5f;
     }
 
-    float stepY = g.dy * g.slowMul;
-    g.ballY = g.ballY + stepY;
-    if (g.ballY < HUD_H) {
-        g.ballY = g.ballY - stepY;
-        g.dy = -g.dy;
-    }
-    if (damageCorners(g)) {
-        g.ballY = g.ballY - stepY;
-        g.dy = -g.dy;
+    // ---- X step ----
+    ballX = ballX + stepX;
+
+    if (ballX > windX - ballD || ballX < 0.f)
+    {
+        ballX = ballX - stepX;
+        dx = -dx;
     }
 
-    bool touch = (g.ballX < g.paddleX + g.paddleWidth) &&
-        (g.ballX + BALL_D > g.paddleX) &&
-        (g.ballY < PADDLE_Y + PADDLE_H) &&
-        (g.ballY + BALL_D > PADDLE_Y);
+    float cornersX[4] = { ballX, ballX + ballD, ballX + ballD, ballX };
+    float cornersY[4] = { ballY, ballY, ballY + ballD, ballY + ballD };
 
-    if (touch && g.dy > 0.f) {
-        g.ballY = PADDLE_Y - BALL_D;
-        float center = g.ballX + BALL_R;
-        int part = (int)((center - g.paddleX) * 4.f / g.paddleWidth);
+    int ids[4] = { -1, -1, -1, -1 };
+    int nIds = 0;
+    bool hitX = false;
+
+    for (int i = 0; i < 4; i++)
+    {
+        float cx = cornersX[i];
+        float cy = cornersY[i];
+        if (cx < 600 && cx >= 0 && cy < 300 && cy >= 100)
+        {
+            int row = (int)((cy - 100) / 25);
+            int col = (int)(cx / 60);
+            if (bricks[row][col] > 0)
+            {
+                int id = row * 10 + col;
+                bool dup = false;
+                for (int k = 0; k < nIds; k++)
+                {
+                    if (ids[k] == id) { dup = true; break; }
+                }
+                if (dup) { hitX = true; continue; }
+
+                ids[nIds] = id;
+                nIds++;
+
+                bricks[row][col] = bricks[row][col] - 1;
+                if (bricks[row][col] == 0)
+                {
+                    score = score + 50;
+                    spawnPowerUp(col * 60.f + 30.f, 100.f + row * 25.f + 12.5f,
+                        puActive, puX, puY, puType);
+                }
+                else
+                {
+                    score = score + 10;
+                }
+                hitX = true;
+            }
+        }
+    }
+    if (hitX == true)
+    {
+        ballX = ballX - stepX;
+        dx = -dx;
+    }
+
+    // ---- Y step ----
+    ballY = ballY + stepY;
+
+    if (ballY < 50.f)
+    {
+        ballY = ballY - stepY;
+        dy = -dy;
+    }
+
+    float cornersX2[4] = { ballX, ballX + ballD, ballX + ballD, ballX };
+    float cornersY2[4] = { ballY, ballY, ballY + ballD, ballY + ballD };
+
+    int ids2[4] = { -1, -1, -1, -1 };
+    int nIds2 = 0;
+    bool hitY = false;
+
+    for (int i = 0; i < 4; i++)
+    {
+        float cx = cornersX2[i];
+        float cy = cornersY2[i];
+        if (cx < 600 && cx >= 0 && cy < 300 && cy >= 100)
+        {
+            int row = (int)((cy - 100) / 25);
+            int col = (int)(cx / 60);
+            if (bricks[row][col] > 0)
+            {
+                int id = row * 10 + col;
+                bool dup = false;
+                for (int k = 0; k < nIds2; k++)
+                {
+                    if (ids2[k] == id) { dup = true; break; }
+                }
+                if (dup) { hitY = true; continue; }
+
+                ids2[nIds2] = id;
+                nIds2++;
+
+                bricks[row][col] = bricks[row][col] - 1;
+                if (bricks[row][col] == 0)
+                {
+                    score = score + 50;
+                    spawnPowerUp(col * 60.f + 30.f, 100.f + row * 25.f + 12.5f,
+                        puActive, puX, puY, puType);
+                }
+                else
+                {
+                    score = score + 10;
+                }
+                hitY = true;
+            }
+        }
+    }
+    if (hitY == true)
+    {
+        ballY = ballY - stepY;
+        dy = -dy;
+    }
+
+    // ---- Paddle collision ----
+    if (ballY + ballD >= paddleY && ballX + ballD >= paddleX && ballX <= paddleX + paddleW && dy > 0.f && ballY <= paddleY + paddleH)
+    {
+        ballY = 638.f;
+
+        int part = (int)((ballX + 6 - paddleX) * 4.f / paddleW);
         if (part < 0) part = 0;
-        if (part > 3) part = 3;
+        else if (part > 3) part = 3;
 
-        if (part == 0)      g.dx = -6.f;
-        else if (part == 1) g.dx = -3.f;
-        else if (part == 2) g.dx = 3.f;
-        else                g.dx = 6.f;
+        if (part == 0)      dx = -6.f;
+        else if (part == 1) dx = -3.f;
+        else if (part == 2) dx = 3.f;
+        else                dx = 6.f;
 
-        g.dy = -5.f;
+        dy = -5.f;
     }
 
-    if (g.ballY > WINDOW_H) {
-        g.lives = g.lives - 1;
-        if (g.lives <= 0) {
-            g.lives = 0;
-            g.state = GAME_OVER;
-            clearSave();
-        }
-        else {
-            clearPowerUps(g);
-            resetBall(g);
-        }
+    ball.setPosition({ ballX, ballY });
+}
+
+void lifecount(int& lives, bool& isLaunched, float& ballX, float& ballY,
+    float paddleX, float paddleY, float paddleW, float ballD, int windY,
+    bool puActive[], int& wideTimer, int& slowTimer)
+{
+    if (ballY > windY)
+    {
+        if (lives > 0) lives = lives - 1;
+
+        ballX = paddleX + (paddleW - ballD) * 0.5f;
+        ballY = paddleY - ballD;
+        isLaunched = false;
+
+        for (int i = 0; i < 8; i++) puActive[i] = false;
+        wideTimer = 0;
+        slowTimer = 0;
+    }
+}
+
+void checkWinLose(int& gameState, int lives, int bricks[][10])
+{
+    if (gameState != 1) return;
+
+    if (lives <= 0)
+    {
+        gameState = 2;
+        clearSave();
+        return;
     }
 
-    if (g.state == PLAYING && !anyBricksLeft(g.bricks)) {
-        g.state = YOU_WIN;
+    bool allGone = true;
+    for (int r = 0; r < 8; r++)
+    {
+        for (int c = 0; c < 10; c++)
+        {
+            if (bricks[r][c] > 0) { allGone = false; break; }
+        }
+        if (allGone == false) break;
+    }
+    if (allGone == true)
+    {
+        gameState = 3;
         clearSave();
     }
 }
 
-void updatePowerUps(Game& g) {
-    for (int i = 0; i < MAX_POWERUPS; i++) {
-        if (!g.powerups[i].active) continue;
+void updatePowerUps(bool puActive[], float puX[], float puY[], int puType[],
+    float paddleX, float paddleY, float paddleH,
+    float& paddleW, int& lives, int& wideTimer, int& slowTimer)
+{
+    for (int i = 0; i < 8; i++)
+    {
+        if (!puActive[i]) continue;
 
-        g.powerups[i].y = g.powerups[i].y + PU_SPEED;
+        puY[i] = puY[i] + 3.f;
 
-        bool caught = (g.powerups[i].x + PU_SIZE > g.paddleX) &&
-            (g.powerups[i].x < g.paddleX + g.paddleWidth) &&
-            (g.powerups[i].y + PU_SIZE > PADDLE_Y) &&
-            (g.powerups[i].y < PADDLE_Y + PADDLE_H);
+        bool caught = (puX[i] + 20.f > paddleX) &&
+            (puX[i] < paddleX + paddleW) &&
+            (puY[i] + 20.f > paddleY) &&
+            (puY[i] < paddleY + paddleH);
 
-        if (caught) {
-            if (g.powerups[i].type == PU_WIDE) g.wideTimer = PU_DURATION;
-            else if (g.powerups[i].type == PU_LIFE) g.lives = g.lives + 1;
-            else if (g.powerups[i].type == PU_SLOW) g.slowTimer = PU_DURATION;
-            g.powerups[i].active = false;
+        if (caught)
+        {
+            if (puType[i] == 1)      wideTimer = 600;
+            else if (puType[i] == 2) lives = lives + 1;
+            else if (puType[i] == 3) slowTimer = 600;
+
+            puActive[i] = false;
             continue;
         }
 
-        if (g.powerups[i].y > WINDOW_H) g.powerups[i].active = false;
+        if (puY[i] > 700.f) puActive[i] = false;
     }
 
-    if (g.wideTimer > 0) g.wideTimer = g.wideTimer - 1;
-    if (g.slowTimer > 0) g.slowTimer = g.slowTimer - 1;
+    if (wideTimer > 0) wideTimer = wideTimer - 1;
+    if (slowTimer > 0) slowTimer = slowTimer - 1;
 
-    if (g.wideTimer > 0) g.paddleWidth = PADDLE_W + 50.f;
-    else                 g.paddleWidth = PADDLE_W;
-
-    if (g.slowTimer > 0) g.slowMul = 0.5f;
-    else                 g.slowMul = 1.0f;
+    if (wideTimer > 0) paddleW = 150.f;
+    else               paddleW = 100.f;
 }
 
-void updateGame(Game& g) {
-    if (g.state != PLAYING) return;
-    updatePaddle(g);
-    updateBall(g);
-    updatePowerUps(g);
+void showScore(RenderWindow& window, int score, sf::Font& font, int lives)
+{
+    sf::RectangleShape strip({ 600.f, 50.f });
+    strip.setFillColor(sf::Color(10, 10, 30));
+    window.draw(strip);
+
+    sf::Text scoreText(font);
+    scoreText.setString("SCORE  " + std::to_string(score));
+    scoreText.setCharacterSize(22);
+    scoreText.setFillColor(sf::Color::White);
+    scoreText.setPosition({ 20.f, 12.f });
+    window.draw(scoreText);
+
+    sf::Text livesText(font);
+    livesText.setString("LIVES  " + std::to_string(lives));
+    livesText.setCharacterSize(22);
+    livesText.setFillColor(sf::Color::White);
+    livesText.setPosition({ 460.f, 12.f });
+    window.draw(livesText);
 }
 
-// ============ Draw ============
-void centerText(Text& t, float x, float y) {
-    FloatRect b = t.getLocalBounds();
-    t.setOrigin({ b.size.x / 2.f + b.position.x,
-                  b.size.y / 2.f + b.position.y });
-    t.setPosition({ x, y });
-}
+void drawPowerUps(RenderWindow& window, bool puActive[], float puX[], float puY[], int puType[], sf::Font& font)
+{
+    for (int i = 0; i < 8; i++)
+    {
+        if (!puActive[i]) continue;
 
-void drawBricks(RenderWindow& w, int b[ROWS][COLS]) {
-    Color colors[4];
-    colors[0] = Color(0, 0, 0);
-    colors[1] = Color::Green;
-    colors[2] = Color::Yellow;
-    colors[3] = Color::Red;
-
-    RectangleShape brick({ BRICK_W - 2.f, BRICK_H - 2.f });
-    for (int r = 0; r < ROWS; r++) {
-        for (int c = 0; c < COLS; c++) {
-            if (b[r][c] <= 0) continue;
-            brick.setFillColor(colors[b[r][c]]);
-            brick.setPosition({ c * BRICK_W + 1.f, BRICKS_Y + r * BRICK_H + 1.f });
-            w.draw(brick);
-        }
-    }
-}
-
-void drawPowerUps(RenderWindow& w, Game& g, Font& font) {
-    for (int i = 0; i < MAX_POWERUPS; i++) {
-        if (!g.powerups[i].active) continue;
-
-        Color col;
+        sf::Color col;
         string label;
-        if (g.powerups[i].type == PU_WIDE) { col = Color(80, 180, 255);  label = "W"; }
-        else if (g.powerups[i].type == PU_LIFE) { col = Color(80, 255, 120);  label = "+"; }
-        else { col = Color(255, 160, 60);  label = "S"; }
+        if (puType[i] == 1) { col = sf::Color(80, 180, 255);  label = "W"; }
+        else if (puType[i] == 2) { col = sf::Color(80, 255, 120);  label = "+"; }
+        else { col = sf::Color(255, 160, 60);  label = "S"; }
 
-        RectangleShape r({ PU_SIZE, PU_SIZE });
+        sf::RectangleShape r({ 20.f, 20.f });
         r.setFillColor(col);
-        r.setPosition({ g.powerups[i].x, g.powerups[i].y });
-        w.draw(r);
+        r.setPosition({ puX[i], puY[i] });
+        window.draw(r);
 
-        Text t(font, label, 16);
-        t.setFillColor(Color::Black);
-        centerText(t, g.powerups[i].x + PU_SIZE * 0.5f,
-            g.powerups[i].y + PU_SIZE * 0.5f);
-        w.draw(t);
+        sf::Text t(font);
+        t.setString(label);
+        t.setCharacterSize(16);
+        t.setFillColor(sf::Color::Black);
+        t.setPosition({ puX[i] + 6.f, puY[i] + 1.f });
+        window.draw(t);
     }
 }
 
-void drawHUD(RenderWindow& w, Game& g, Font& font) {
-    RectangleShape strip({ WINDOW_W, (float)HUD_H });
-    strip.setFillColor(Color(10, 10, 30));
-    w.draw(strip);
+void drawMenu(RenderWindow& window, int menuChoice, string menuMessage, sf::Font& font)
+{
+    sf::RectangleShape bg({ 600.f, 700.f });
+    bg.setFillColor(sf::Color(15, 15, 40));
+    window.draw(bg);
 
-    Text score(font, "SCORE  " + to_string(g.score), 22);
-    score.setFillColor(Color::White);
-    score.setPosition({ 15, 12 });
-    w.draw(score);
+    sf::Text title(font);
+    title.setString("BLOCK BUSTER");
+    title.setCharacterSize(48);
+    title.setStyle(sf::Text::Bold);
+    title.setFillColor(sf::Color(100, 210, 255));
+    title.setPosition({ 110.f, 130.f });
+    window.draw(title);
 
-    Text lives(font, "LIVES", 22);
-    lives.setFillColor(Color::White);
-    lives.setPosition({ WINDOW_W - 130, 12 });
-    w.draw(lives);
-
-    for (int i = 0; i < g.lives && i < 6; i++) {
-        CircleShape dot(7.f);
-        dot.setFillColor(Color::White);
-        dot.setPosition({ WINDOW_W - 55 + i * 18.f, 18.f });
-        w.draw(dot);
+    string labels[3] = { "New Game", "Continue", "Exit" };
+    for (int i = 0; i < 3; i++)
+    {
+        sf::Text t(font);
+        t.setString(labels[i]);
+        t.setCharacterSize(32);
+        if (i == menuChoice) t.setFillColor(sf::Color(100, 255, 150));
+        else                 t.setFillColor(sf::Color(200, 200, 220));
+        t.setPosition({ 210.f, 300.f + i * 60.f });
+        window.draw(t);
     }
 
-    float bx = 15.f;
-    if (g.wideTimer > 0) {
-        Text t(font, "WIDE " + to_string(g.wideTimer / 60 + 1), 16);
-        t.setFillColor(Color(80, 180, 255));
-        t.setPosition({ bx, 26 });
-        w.draw(t);
-        bx = bx + 80.f;
+    if (menuMessage != "")
+    {
+        sf::Text m(font);
+        m.setString(menuMessage);
+        m.setCharacterSize(20);
+        m.setFillColor(sf::Color(255, 200, 100));
+        m.setPosition({ 200.f, 540.f });
+        window.draw(m);
     }
-    if (g.slowTimer > 0) {
-        Text t(font, "SLOW " + to_string(g.slowTimer / 60 + 1), 16);
-        t.setFillColor(Color(255, 160, 60));
-        t.setPosition({ bx, 26 });
-        w.draw(t);
-    }
+
+    sf::Text hint(font);
+    hint.setString("Up / Down to move    Enter to select");
+    hint.setCharacterSize(18);
+    hint.setFillColor(sf::Color(140, 140, 170));
+    hint.setPosition({ 100.f, 640.f });
+    window.draw(hint);
 }
 
-void drawMenu(RenderWindow& w, Game& g, Font& font) {
-    RectangleShape bg({ WINDOW_W, WINDOW_H });
-    bg.setFillColor(Color(15, 15, 40));
-    w.draw(bg);
+void drawEndScreen(RenderWindow& window, int gameState, int score, sf::Font& font)
+{
+    bool win = (gameState == 3);
 
-    Text title(font, "BLOCK BUSTER", 48);
-    title.setStyle(Text::Bold);
-    title.setFillColor(Color(100, 210, 255));
-    centerText(title, WINDOW_W / 2.f, 150.f);
-    w.draw(title);
+    sf::RectangleShape bg({ 600.f, 700.f });
+    if (win) bg.setFillColor(sf::Color(10, 40, 10));
+    else     bg.setFillColor(sf::Color(45, 10, 10));
+    window.draw(bg);
 
-    string labels[3];
-    labels[0] = "New Game";
-    labels[1] = "Continue";
-    labels[2] = "Exit";
+    sf::Text title(font);
+    if (win) title.setString("YOU WIN!");
+    else     title.setString("GAME OVER");
+    title.setCharacterSize(56);
+    title.setStyle(sf::Text::Bold);
+    if (win) title.setFillColor(sf::Color(100, 255, 150));
+    else     title.setFillColor(sf::Color(255, 100, 100));
+    title.setPosition({ 150.f, 240.f });
+    window.draw(title);
 
-    for (int i = 0; i < 3; i++) {
-        Text t(font, labels[i], 32);
-        if (i == g.menuChoice) t.setFillColor(Color(100, 255, 150));
-        else                   t.setFillColor(Color(200, 200, 220));
-        centerText(t, WINDOW_W / 2.f, 320.f + i * 60.f);
-        w.draw(t);
+    sf::Text sc(font);
+    sc.setString("Final Score: " + std::to_string(score));
+    sc.setCharacterSize(30);
+    sc.setFillColor(sf::Color::White);
+    sc.setPosition({ 180.f, 380.f });
+    window.draw(sc);
 
-        if (i == g.menuChoice) {
-            CircleShape dot(6.f);
-            dot.setFillColor(Color(100, 255, 150));
-            dot.setPosition({ WINDOW_W / 2.f - 130, 320.f + i * 60.f - 14 });
-            w.draw(dot);
+    sf::Text p(font);
+    p.setString("Press Enter to return to menu");
+    p.setCharacterSize(22);
+    p.setFillColor(sf::Color(200, 200, 220));
+    p.setPosition({ 140.f, 490.f });
+    window.draw(p);
+}
+
+void renderGame(RenderWindow& window, int gameState, int menuChoice, string menuMessage,
+    int bricks[][10], int rows, int cols,
+    RectangleShape& paddle, CircleShape& ball,
+    int score, int lives, sf::Font& font, bool isLaunched,
+    bool puActive[], float puX[], float puY[], int puType[])
+{
+    window.clear(Color(15, 15, 40));
+
+    if (gameState == 0)
+    {
+        drawMenu(window, menuChoice, menuMessage, font);
+    }
+    else if (gameState == 1)
+    {
+        drawBricks(window, bricks, rows, cols);
+        window.draw(paddle);
+        window.draw(ball);
+        drawPowerUps(window, puActive, puX, puY, puType, font);
+        showScore(window, score, font, lives);
+
+        if (isLaunched == false)
+        {
+            sf::Text h(font);
+            h.setString("Press Space to launch");
+            h.setCharacterSize(20);
+            h.setFillColor(sf::Color(150, 200, 255));
+            h.setPosition({ 175.f, 545.f });
+            window.draw(h);
         }
     }
-
-    if (g.menuMessage != "") {
-        Text m(font, g.menuMessage, 20);
-        m.setFillColor(Color(255, 200, 100));
-        centerText(m, WINDOW_W / 2.f, 560.f);
-        w.draw(m);
+    else
+    {
+        drawEndScreen(window, gameState, score, font);
     }
 
-    Text hint(font, "Up / Down to move    Enter to select", 18);
-    hint.setFillColor(Color(140, 140, 170));
-    centerText(hint, WINDOW_W / 2.f, 660.f);
-    w.draw(hint);
+    window.display();
 }
 
-void drawEndScreen(RenderWindow& w, Game& g, Font& font) {
-    bool win = (g.state == YOU_WIN);
+int main()
+{
+    int windX = 600, windY = 700;
 
-    RectangleShape bg({ WINDOW_W, WINDOW_H });
-    if (win) bg.setFillColor(Color(10, 40, 10));
-    else     bg.setFillColor(Color(45, 10, 10));
-    w.draw(bg);
-
-    Text title(font, win ? "YOU WIN!" : "GAME OVER", 56);
-    title.setStyle(Text::Bold);
-    if (win) title.setFillColor(Color(100, 255, 150));
-    else     title.setFillColor(Color(255, 100, 100));
-    centerText(title, WINDOW_W / 2.f, 260.f);
-    w.draw(title);
-
-    Text sc(font, "Final Score: " + to_string(g.score), 30);
-    sc.setFillColor(Color::White);
-    centerText(sc, WINDOW_W / 2.f, 390.f);
-    w.draw(sc);
-
-    Text p(font, "Press Enter to return to menu", 22);
-    p.setFillColor(Color(200, 200, 220));
-    centerText(p, WINDOW_W / 2.f, 500.f);
-    w.draw(p);
-}
-
-void drawGame(RenderWindow& w, Game& g, Font& font) {
-    w.clear(Color(15, 15, 40));
-
-    if (g.state == MENU) {
-        drawMenu(w, g, font);
-    }
-    else if (g.state == PLAYING) {
-        drawBricks(w, g.bricks);
-
-        RectangleShape paddle({ g.paddleWidth, PADDLE_H });
-        paddle.setFillColor(Color(80, 200, 255));
-        paddle.setPosition({ g.paddleX, PADDLE_Y });
-        w.draw(paddle);
-
-        CircleShape ball(BALL_R);
-        ball.setFillColor(Color::White);
-        ball.setPosition({ g.ballX, g.ballY });
-        w.draw(ball);
-
-        drawPowerUps(w, g, font);
-        drawHUD(w, g, font);
-
-        if (!g.isLaunched) {
-            Text h(font, "Press Space to launch", 20);
-            h.setFillColor(Color(150, 200, 255));
-            centerText(h, WINDOW_W / 2.f, 550.f);
-            w.draw(h);
-        }
-    }
-    else {
-        drawEndScreen(w, g, font);
-    }
-
-    w.display();
-}
-
-// ============ Main ============
-int main() {
-    srand((unsigned)time(0));
-
-    RenderWindow window(VideoMode({ (unsigned)WINDOW_W, (unsigned)WINDOW_H }), "Block Buster by bit hunters");
+    RenderWindow window(
+        VideoMode({ 600, 700 }),
+        "Block Buster"
+    );
     window.setFramerateLimit(60);
 
-    // Font loading 
-    Font font;
-    bool fontOk = font.openFromFile("C:/Windows/Fonts/arial.ttf");
-    
+    srand(time(0));
 
-    Game g{};
-    g.state = MENU;
-    g.menuChoice = OPT_NEW;
-    g.paddleX = 250.f;
-    g.lives = START_LIVES;
-    clearPowerUps(g);
-    resetBall(g);
-
-    while (window.isOpen()) {
-        handleInput(window, g);
-        updateGame(g);
-        drawGame(window, g, font);
+    sf::Font font;
+    if (!font.openFromFile("arial.ttf"))
+    {
+        font.openFromFile("C:/Windows/Fonts/arial.ttf");
     }
+
+    int gameState = 0;
+    int menuChoice = 0;
+    string menuMessage = "";
+
+    int bricks[8][10];
+    int rows = 0, cols = 0;
+    if (!loadLevel(bricks, rows, cols))
+    {
+        menuMessage = "level.txt not found";
+    }
+
+    // paddle
+    float paddleX = 250.f, paddleY = 650.f;
+    float paddleW = 100.f, paddleH = 14.f;
+    RectangleShape paddle({ paddleW, paddleH });
+    paddle.setPosition({ paddleX, paddleY });
+    paddle.setFillColor(Color::Cyan);
+
+    // ball
+    float ballD = 12.f;
+    float ballX = paddleX + (paddleW - ballD) * 0.5f;
+    float ballY = paddleY - ballD;
+    CircleShape ball(6.f);
+    ball.setPosition({ ballX, ballY });
+    ball.setFillColor(Color::White);
+
+    bool isLaunched = false;
+    float dx = 0.f, dy = 0.f;
+    int score = 0;
+    int lives = 3;
+
+    bool puActive[8];
+    float puX[8], puY[8];
+    int puType[8];
+    for (int i = 0; i < 8; i++) puActive[i] = false;
+    int wideTimer = 0, slowTimer = 0;
+
+    while (window.isOpen())
+    {
+        handleEvents(window, gameState, menuChoice, menuMessage,
+            isLaunched, dx, dy, score, lives, bricks, rows, cols,
+            paddleX, paddleW, ballX, ballY,
+            puActive, wideTimer, slowTimer);
+
+        if (gameState == 1)
+        {
+            updatePaddle(paddleX, paddleY, paddleW, windX, paddle);
+            updatePowerUps(puActive, puX, puY, puType,
+                paddleX, paddleY, paddleH, paddleW, lives, wideTimer, slowTimer);
+            updateBall(isLaunched, ballX, ballY, ballD,
+                paddleX, paddleY, paddleW, paddleH,
+                windX, windY, dx, dy, ball,
+                rows, cols, bricks, score,
+                puActive, puX, puY, puType, slowTimer);
+            lifecount(lives, isLaunched, ballX, ballY,
+                paddleX, paddleY, paddleW, ballD, windY,
+                puActive, wideTimer, slowTimer);
+            checkWinLose(gameState, lives, bricks);
+        }
+
+        // Keep paddle shape in sync with current paddleW every frame
+        if (paddleX > windX - paddleW) paddleX = windX - paddleW;
+        if (paddleX < 0.f) paddleX = 0.f;
+        paddle.setSize({ paddleW, paddleH });
+        paddle.setPosition({ paddleX, paddleY });
+
+        renderGame(window, gameState, menuChoice, menuMessage,
+            bricks, rows, cols, paddle, ball,
+            score, lives, font, isLaunched,
+            puActive, puX, puY, puType);
+    }
+
     return 0;
 }
