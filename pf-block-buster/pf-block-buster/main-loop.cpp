@@ -12,8 +12,8 @@ using namespace std;
 const float WINDOW_W = 600.f, WINDOW_H = 700.f;
 const int   ROWS = 8, COLS = 10;
 const float BRICK_W = 60.f, BRICK_H = 25.f, BRICKS_Y = 100.f;
-const float PADDLE_W = 100.f, PADDLE_H = 14.f, PADDLE_Y = 650.f;
-const float PADDLE_SPEED = 8.f;
+const float PADDLE_W = 200.f, PADDLE_H = 14.f, PADDLE_Y = 650.f;
+const float PADDLE_SPEED = 20.f;
 const float BALL_R = 6.f, BALL_D = 12.f;
 const int   HUD_H = 50;
 const int   START_LIVES = 3;
@@ -50,41 +50,54 @@ struct Game {
 };
 
 // ============ Helpers ============
-bool loadLevel(int bricks[ROWS][COLS]) {
+bool loadLevel(int bricks[ROWS][COLS]) 
+{
     ifstream fin("level.txt");
-    if (!fin) return false;
+    if (!fin) 
+        return false;
     int r, c;
-    if (!(fin >> r >> c)) return false;
-    for (int i = 0; i < ROWS; i++)
-        for (int j = 0; j < COLS; j++) bricks[i][j] = 0;
+    if (!(fin >> r >> c)) 
+        return false;
+    for (int i = 0; i < ROWS; i++)      //initializing 2d array bricks with 0
+        for (int j = 0; j < COLS; j++) 
+            bricks[i][j] = 0;
     for (int i = 0; i < r; i++)
-        for (int j = 0; j < c; j++) {
+        for (int j = 0; j < c; j++)     //getting values from file & putting in array 
+        {
             int v;
-            if (!(fin >> v)) return true;
-            if (i < ROWS && j < COLS) bricks[i][j] = v;
+            if (!(fin >> v))            //if any value is missing in a file, it left the next part of file without reading
+                return true;            // to protect it from reading garbage.
+            if (i < ROWS && j < COLS) 
+                bricks[i][j] = v;
         }
     return true;
 }
 
-bool anyBricksLeft(int b[ROWS][COLS]) {
+bool anyBricksLeft(int b[ROWS][COLS]) 
+{
     for (int i = 0; i < ROWS; i++)
         for (int j = 0; j < COLS; j++)
-            if (b[i][j] > 0) return true;
+            if (b[i][j] > 0) 
+                return true;
     return false;
 }
 
-void clearPowerUps(Game& g) {
-    for (int i = 0; i < MAX_POWERUPS; i++) g.powerups[i].active = false;
+void clearPowerUps(Game& g) 
+{
+    for (int i = 0; i < MAX_POWERUPS; i++) 
+        g.powerups[i].active = false;
+
     g.wideTimer = 0;
     g.slowTimer = 0;
     g.paddleWidth = PADDLE_W;
     g.slowMul = 1.0f;
 }
 
-void resetBall(Game& g) {
+void resetBall(Game& g) 
+{
     g.isLaunched = false;
-    g.ballX = g.paddleX + (g.paddleWidth - BALL_D) * 0.5f;
-    g.ballY = PADDLE_Y - BALL_D;
+    g.ballX = g.paddleX + (g.paddleWidth - BALL_D) * 0.5f;         //ball to centre of paddle x
+    g.ballY = PADDLE_Y - BALL_D;                                   //ball to centre of paddle y
     g.dx = 0.f;
     g.dy = 0.f;
 }
@@ -93,7 +106,13 @@ void startNewGame(Game& g) {
     g.score = 0;
     g.lives = START_LIVES;
     g.paddleX = 250.f;
-    loadLevel(g.bricks);
+
+    if (!loadLevel(g.bricks)) {              // if now file found
+        g.state = MENU;
+        g.menuMessage = "level.txt is missing";
+        return;
+    }
+
     clearPowerUps(g);
     resetBall(g);
     g.state = PLAYING;
@@ -102,12 +121,16 @@ void startNewGame(Game& g) {
 
 bool saveGame(Game& g) {
     ofstream fout("savegame.txt");
-    if (!fout) return false;
+    if (!fout)
+        return false;
     fout << g.score << " " << g.lives << "\n";
-    for (int i = 0; i < ROWS; i++) {
-        for (int j = 0; j < COLS; j++) {
+    for (int i = 0; i < ROWS; i++) 
+    {
+        for (int j = 0; j < COLS; j++) 
+        {
             fout << g.bricks[i][j];
-            if (j < COLS - 1) fout << " ";
+            if (j < COLS - 1) 
+                fout << " ";
         }
         fout << "\n";
     }
@@ -116,17 +139,26 @@ bool saveGame(Game& g) {
 
 bool loadSave(Game& g) {
     ifstream fin("savegame.txt");
-    if (!fin) return false;
+
+    if (!fin) 
+        return false;
+
     int s, l;
-    if (!(fin >> s >> l)) return false;
+
+    if (!(fin >> s >> l)) 
+        return false;
+
     int temp[ROWS][COLS];
     for (int i = 0; i < ROWS; i++)
         for (int j = 0; j < COLS; j++)
-            if (!(fin >> temp[i][j])) return false;
+            if (!(fin >> temp[i][j])) 
+                return false;
     g.score = s;
     g.lives = l;
     for (int i = 0; i < ROWS; i++)
-        for (int j = 0; j < COLS; j++) g.bricks[i][j] = temp[i][j];
+        for (int j = 0; j < COLS; j++) 
+            g.bricks[i][j] = temp[i][j];
+
     g.paddleX = 250.f;
     clearPowerUps(g);
     resetBall(g);
@@ -136,23 +168,33 @@ bool loadSave(Game& g) {
 }
 
 void clearSave() {
-    ofstream f("savegame.txt");
+    ofstream f("savegame.txt"); //called when user win,lose
+    //it clear the save file
 }
 
-int pointBrick(float cx, float cy, int b[ROWS][COLS]) {
-    if (cx < 0 || cx >= WINDOW_W) return -1;
-    if (cy < BRICKS_Y || cy >= BRICKS_Y + ROWS * BRICK_H) return -1;
+int pointBrick(float cx, float cy, int b[ROWS][COLS]) 
+{
+    if (cx < 0 || cx >= WINDOW_W) 
+        return -1;
+    if (cy < BRICKS_Y || cy >= BRICKS_Y + ROWS * BRICK_H) 
+        return -1;
     int col = (int)(cx / BRICK_W);
     int row = (int)((cy - BRICKS_Y) / BRICK_H);
-    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return -1;
-    if (b[row][col] <= 0) return -1;
+    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) 
+        return -1;
+    if (b[row][col] <= 0) 
+        return -1;
     return row * COLS + col;
 }
 
-void spawnPowerUp(Game& g, float cx, float cy) {
-    if (rand() % 100 >= 25) return;
-    for (int i = 0; i < MAX_POWERUPS; i++) {
-        if (!g.powerups[i].active) {
+void spawnPowerUp(Game& g, float cx, float cy) 
+{
+    if (rand() % 100 >= 25) 
+        return;
+    for (int i = 0; i < MAX_POWERUPS; i++) 
+    {
+        if (!g.powerups[i].active) 
+        {
             g.powerups[i].active = true;
             g.powerups[i].x = cx - PU_SIZE * 0.5f;
             g.powerups[i].y = cy - PU_SIZE * 0.5f;
@@ -162,10 +204,11 @@ void spawnPowerUp(Game& g, float cx, float cy) {
     }
 }
 
-bool damageCorners(Game& g) {
+bool damageCorners(Game& g) 
+{
     float cx[4];
     float cy[4];
-    cx[0] = g.ballX;            cy[0] = g.ballY;
+    cx[0] = g.ballX;            cy[0] = g.ballY;               //four edges of ball (x,y)
     cx[1] = g.ballX + BALL_D;   cy[1] = g.ballY;
     cx[2] = g.ballX + BALL_D;   cy[2] = g.ballY + BALL_D;
     cx[3] = g.ballX;            cy[3] = g.ballY + BALL_D;
@@ -174,16 +217,24 @@ bool damageCorners(Game& g) {
     int n = 0;
     bool any = false;
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) 
+    {
         int id = pointBrick(cx[i], cy[i], g.bricks);
-        if (id < 0) continue;
+        if (id < 0) 
+            continue;
         any = true;
 
         bool dup = false;
-        for (int k = 0; k < n; k++) {
-            if (ids[k] == id) { dup = true; break; }
+        for (int k = 0; k < n; k++) 
+        {
+            if (ids[k] == id) 
+            { 
+                dup = true; 
+                break; 
+            }
         }
-        if (dup) continue;
+        if (dup) 
+            continue;
 
         ids[n] = id;
         n = n + 1;
@@ -192,13 +243,13 @@ bool damageCorners(Game& g) {
         int c = id % COLS;
         g.bricks[r][c] = g.bricks[r][c] - 1;
 
-        if (g.bricks[r][c] == 0) {
+        if (g.bricks[r][c] == 0) 
+        {
             g.score = g.score + 50;
-            spawnPowerUp(g,
-                c * BRICK_W + BRICK_W * 0.5f,
-                BRICKS_Y + r * BRICK_H + BRICK_H * 0.5f);
+            spawnPowerUp(g,c * BRICK_W + BRICK_W * 0.5f,BRICKS_Y + r * BRICK_H + BRICK_H * 0.5f);
         }
-        else {
+        else 
+        {
             g.score = g.score + 10;
         }
     }
@@ -209,14 +260,14 @@ bool damageCorners(Game& g) {
 void handleInput(RenderWindow& window, Game& g) {
     optional<Event> opt = window.pollEvent();
     while (opt) {
-        Event ev = *opt;   // copy event, no pointer
+        Event ev = *opt;   // copy event, 
 
         if (ev.is<Event::Closed>()) {
             window.close();
             return;
         }
         if (ev.is<Event::KeyPressed>()) {
-            // NOTE: SFML 3's getIf returns a pointer — we use it inline, no named pointer var
+            
             Keyboard::Key code = ev.getIf<Event::KeyPressed>()->code;
 
             if (g.state == MENU) {
@@ -401,7 +452,7 @@ void centerText(Text& t, float x, float y) {
 
 void drawBricks(RenderWindow& w, int b[ROWS][COLS]) {
     Color colors[4];
-    colors[0] = Color(25, 25, 45);
+    colors[0] = Color(0, 0, 0);
     colors[1] = Color::Green;
     colors[2] = Color::Yellow;
     colors[3] = Color::Red;
@@ -588,15 +639,13 @@ void drawGame(RenderWindow& w, Game& g, Font& font) {
 int main() {
     srand((unsigned)time(0));
 
-    RenderWindow window(VideoMode({ (unsigned)WINDOW_W, (unsigned)WINDOW_H }), "Block Buster");
+    RenderWindow window(VideoMode({ (unsigned)WINDOW_W, (unsigned)WINDOW_H }), "Block Buster by bit hunters");
     window.setFramerateLimit(60);
 
-    // Font loading — no pointer array, just explicit tries
+    // Font loading 
     Font font;
-    bool fontOk = font.openFromFile("arial.ttf");
-    if (!fontOk) fontOk = font.openFromFile("C:/Windows/Fonts/arial.ttf");
-    if (!fontOk) fontOk = font.openFromFile("C:/Windows/Fonts/calibri.ttf");
-    if (!fontOk) cout << "WARNING: no font found. Place arial.ttf next to the exe." << endl;
+    bool fontOk = font.openFromFile("C:/Windows/Fonts/arial.ttf");
+    
 
     Game g{};
     g.state = MENU;

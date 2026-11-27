@@ -21,5 +21,8 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="level.txt" />
+    <Text Include="savegame.txt">
+      <Filter>Source Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>
