@@ -14,14 +14,18 @@ using namespace std;
 bool loadLevel(int bricks[][10], int& Rows, int& Cols)
 {
     ifstream fin("level.txt");
-    if (!fin) return false;
+    if (!fin) 
+        return false;
 
     Rows = 0;
     Cols = 0;
-    if (!(fin >> Rows >> Cols)) return false;
+    if (!(fin >> Rows >> Cols)) 
+        return false;
 
-    if (Rows > 8)  Rows = 8;
-    if (Cols > 10) Cols = 10;
+    if (Rows > 8)  
+        Rows = 8;
+    if (Cols > 10) 
+        Cols = 10;
 
     for (int i = 0; i < 8; i++)
     {
@@ -71,7 +75,8 @@ void drawBricks(sf::RenderWindow& window, int bricks[][10], int& Rows, int& Cols
 bool saveGame(int score, int lives, int bricks[][10], int Rows, int Cols)
 {
     ofstream fout("savegame.txt");
-    if (!fout) return false;
+    if (!fout) return 
+        false;
 
     fout << score << " " << lives << "\n";
     for (int r = 0; r < Rows; r++)
@@ -79,7 +84,8 @@ bool saveGame(int score, int lives, int bricks[][10], int Rows, int Cols)
         for (int c = 0; c < Cols; c++)
         {
             fout << bricks[r][c];
-            if (c < Cols - 1) fout << " ";
+            if (c < Cols - 1) 
+                fout << " ";
         }
         fout << "\n";
     }
@@ -91,23 +97,23 @@ void clearSave()
     ofstream f("savegame.txt");
 }
 
-bool loadSave(int& gameState, int& score, int& lives, int bricks[][10],
-    int& Rows, int& Cols,
-    float& paddleX, float& paddleW, float& ballX, float& ballY,
-    bool& isLaunched, float& dx, float& dy)
+bool loadSave(int& gameState, int& score, int& lives, int bricks[][10],int& Rows, int& Cols,float& paddleX, float& paddleW, float& ballX, float& ballY,bool& isLaunched, float& dx, float& dy)
 {
     ifstream fin("savegame.txt");
-    if (!fin) return false;
+    if (!fin) 
+        return false;
 
     int s = 0, l = 0;
-    if (!(fin >> s >> l)) return false;
+    if (!(fin >> s >> l)) 
+        return false;
 
     int temp[8][10];
     for (int r = 0; r < 8; r++)
     {
         for (int c = 0; c < 10; c++)
         {
-            if (!(fin >> temp[r][c])) return false;
+            if (!(fin >> temp[r][c])) 
+                return false;
         }
     }
     fin.close();
@@ -133,11 +139,7 @@ bool loadSave(int& gameState, int& score, int& lives, int bricks[][10],
     return true;
 }
 
-bool startNewGame(int& gameState, int& score, int& lives, int bricks[][10],
-    int& Rows, int& Cols,
-    float& paddleX, float& paddleW, float& ballX, float& ballY,
-    bool& isLaunched, float& dx, float& dy,
-    bool puActive[], int& wideTimer, int& slowTimer)
+bool startNewGame(int& gameState, int& score, int& lives, int bricks[][10],int& Rows, int& Cols,float& paddleX, float& paddleW, float& ballX, float& ballY,bool& isLaunched, float& dx, float& dy,bool puActive[], int& wideTimer, int& slowTimer)
 {
     score = 0;
     lives = 3;
@@ -146,11 +148,13 @@ bool startNewGame(int& gameState, int& score, int& lives, int bricks[][10],
     isLaunched = false;
     dx = 0.f;
     dy = 0.f;
-    for (int i = 0; i < 8; i++) puActive[i] = false;
+    for (int i = 0; i < 8; i++) 
+        puActive[i] = false;
     wideTimer = 0;
     slowTimer = 0;
 
-    if (!loadLevel(bricks, Rows, Cols)) return false;
+    if (!loadLevel(bricks, Rows, Cols)) 
+        return false;
 
     ballX = paddleX + (paddleW - 12.f) * 0.5f;
     ballY = 650.f - 12.f;
@@ -160,7 +164,8 @@ bool startNewGame(int& gameState, int& score, int& lives, int bricks[][10],
 
 void spawnPowerUp(float cx, float cy, bool puActive[], float puX[], float puY[], int puType[])
 {
-    if (rand() % 100 >= 25) return;
+    if (rand() % 100 >= 25) 
+        return;
     for (int i = 0; i < 8; i++)
     {
         if (!puActive[i])
@@ -174,11 +179,7 @@ void spawnPowerUp(float cx, float cy, bool puActive[], float puX[], float puY[],
     }
 }
 
-void handleEvents(RenderWindow& window, int& gameState, int& menuChoice, string& menuMessage,
-    bool& isLaunched, float& dx, float& dy,
-    int& score, int& lives, int bricks[][10], int& Rows, int& Cols,
-    float& paddleX, float& paddleW, float& ballX, float& ballY,
-    bool puActive[], int& wideTimer, int& slowTimer)
+void handleEvents(RenderWindow& window, int& gameState, int& menuChoice, string& menuMessage,bool& isLaunched, float& dx, float& dy,int& score, int& lives, int bricks[][10], int& Rows, int& Cols,float& paddleX, float& paddleW, float& ballX, float& ballY,bool puActive[], int& wideTimer, int& slowTimer)
 {
     while (const std::optional event = window.pollEvent())
     {
@@ -274,19 +275,15 @@ void updatePaddle(float& paddleX, float paddleY, float paddleW, int windX, Recta
         paddleX = paddleX + 8.f;
     }
 
-    if (paddleX < 0.f) paddleX = 0.f;
-    if (paddleX > windX - paddleW) paddleX = windX - paddleW;
+    if (paddleX < 0.f) 
+        paddleX = 0.f;
+    if (paddleX > windX - paddleW) 
+        paddleX = windX - paddleW;
 
     paddle.setPosition({ paddleX, paddleY });
 }
 
-void updateBall(bool& isLaunched, float& ballX, float& ballY, float ballD,
-    float paddleX, float paddleY, float paddleW, float paddleH,
-    int windX, int windY,
-    float& dx, float& dy, CircleShape& ball,
-    int rows, int cols, int bricks[][10], int& score,
-    bool puActive[], float puX[], float puY[], int puType[],
-    int slowTimer)
+void updateBall(bool& isLaunched, float& ballX, float& ballY, float ballD,float paddleX, float paddleY, float paddleW, float paddleH,int windX, int windY,float& dx, float& dy, CircleShape& ball,int rows, int cols, int bricks[][10], int& score,bool puActive[], float puX[], float puY[], int puType[],int slowTimer)
 {
     if (isLaunched == false)
     {
@@ -335,9 +332,17 @@ void updateBall(bool& isLaunched, float& ballX, float& ballY, float ballD,
                 bool dup = false;
                 for (int k = 0; k < nIds; k++)
                 {
-                    if (ids[k] == id) { dup = true; break; }
+                    if (ids[k] == id) 
+                    { 
+                        dup = true; 
+                        break; 
+                    }
                 }
-                if (dup) { hitX = true; continue; }
+                if (dup) 
+                { 
+                    hitX = true; 
+                    continue;
+                }
 
                 ids[nIds] = id;
                 nIds++;
@@ -393,9 +398,17 @@ void updateBall(bool& isLaunched, float& ballX, float& ballY, float ballD,
                 bool dup = false;
                 for (int k = 0; k < nIds2; k++)
                 {
-                    if (ids2[k] == id) { dup = true; break; }
+                    if (ids2[k] == id) 
+                    { 
+                        dup = true; 
+                        break; 
+                    }
                 }
-                if (dup) { hitY = true; continue; }
+                if (dup) 
+                { 
+                    hitY = true; 
+                    continue; 
+                }
 
                 ids2[nIds2] = id;
                 nIds2++;
@@ -427,13 +440,19 @@ void updateBall(bool& isLaunched, float& ballX, float& ballY, float ballD,
         ballY = 638.f;
 
         int part = (int)((ballX + 6 - paddleX) * 4.f / paddleW);
-        if (part < 0) part = 0;
-        else if (part > 3) part = 3;
+        if (part < 0) 
+            part = 0;
+        else if (part > 3) 
+            part = 3;
 
-        if (part == 0)      dx = -6.f;
-        else if (part == 1) dx = -3.f;
-        else if (part == 2) dx = 3.f;
-        else                dx = 6.f;
+        if (part == 0)      
+            dx = -6.f;
+        else if (part == 1) 
+            dx = -3.f;
+        else if (part == 2) 
+            dx = 3.f;
+        else                
+            dx = 6.f;
 
         dy = -5.f;
     }
@@ -441,19 +460,19 @@ void updateBall(bool& isLaunched, float& ballX, float& ballY, float ballD,
     ball.setPosition({ ballX, ballY });
 }
 
-void lifecount(int& lives, bool& isLaunched, float& ballX, float& ballY,
-    float paddleX, float paddleY, float paddleW, float ballD, int windY,
-    bool puActive[], int& wideTimer, int& slowTimer)
+void lifecount(int& lives, bool& isLaunched, float& ballX, float& ballY,float paddleX, float paddleY, float paddleW, float ballD, int windY,bool puActive[], int& wideTimer, int& slowTimer)
 {
     if (ballY > windY)
     {
-        if (lives > 0) lives = lives - 1;
+        if (lives > 0) 
+            lives = lives - 1;
 
         ballX = paddleX + (paddleW - ballD) * 0.5f;
         ballY = paddleY - ballD;
         isLaunched = false;
 
-        for (int i = 0; i < 8; i++) puActive[i] = false;
+        for (int i = 0; i < 8; i++) 
+            puActive[i] = false;
         wideTimer = 0;
         slowTimer = 0;
     }
@@ -461,7 +480,8 @@ void lifecount(int& lives, bool& isLaunched, float& ballX, float& ballY,
 
 void checkWinLose(int& gameState, int lives, int bricks[][10])
 {
-    if (gameState != 1) return;
+    if (gameState != 1) 
+        return;
 
     if (lives <= 0)
     {
@@ -475,9 +495,14 @@ void checkWinLose(int& gameState, int lives, int bricks[][10])
     {
         for (int c = 0; c < 10; c++)
         {
-            if (bricks[r][c] > 0) { allGone = false; break; }
+            if (bricks[r][c] > 0) 
+            { 
+                allGone = false; 
+                break; 
+            }
         }
-        if (allGone == false) break;
+        if (allGone == false) 
+            break;
     }
     if (allGone == true)
     {
@@ -486,13 +511,12 @@ void checkWinLose(int& gameState, int lives, int bricks[][10])
     }
 }
 
-void updatePowerUps(bool puActive[], float puX[], float puY[], int puType[],
-    float paddleX, float paddleY, float paddleH,
-    float& paddleW, int& lives, int& wideTimer, int& slowTimer)
+void updatePowerUps(bool puActive[], float puX[], float puY[], int puType[],float paddleX, float paddleY, float paddleH,float& paddleW, int& lives, int& wideTimer, int& slowTimer)
 {
     for (int i = 0; i < 8; i++)
     {
-        if (!puActive[i]) continue;
+        if (!puActive[i]) 
+            continue;
 
         puY[i] = puY[i] + 3.f;
 
@@ -503,22 +527,30 @@ void updatePowerUps(bool puActive[], float puX[], float puY[], int puType[],
 
         if (caught)
         {
-            if (puType[i] == 1)      wideTimer = 600;
-            else if (puType[i] == 2) lives = lives + 1;
-            else if (puType[i] == 3) slowTimer = 600;
+            if (puType[i] == 1)      
+                wideTimer = 600;
+            else if (puType[i] == 2) 
+                lives = lives + 1;
+            else if (puType[i] == 3) 
+                slowTimer = 600;
 
             puActive[i] = false;
             continue;
         }
 
-        if (puY[i] > 700.f) puActive[i] = false;
+        if (puY[i] > 700.f) 
+            puActive[i] = false;
     }
 
-    if (wideTimer > 0) wideTimer = wideTimer - 1;
-    if (slowTimer > 0) slowTimer = slowTimer - 1;
+    if (wideTimer > 0) 
+        wideTimer = wideTimer - 1;
+    if (slowTimer > 0) 
+        slowTimer = slowTimer - 1;
 
-    if (wideTimer > 0) paddleW = 150.f;
-    else               paddleW = 100.f;
+    if (wideTimer > 0) 
+        paddleW = 150.f;
+    else               
+        paddleW = 100.f;
 }
 
 void showScore(RenderWindow& window, int score, sf::Font& font, int lives)
@@ -546,7 +578,8 @@ void drawPowerUps(RenderWindow& window, bool puActive[], float puX[], float puY[
 {
     for (int i = 0; i < 8; i++)
     {
-        if (!puActive[i]) continue;
+        if (!puActive[i]) 
+            continue;
 
         sf::Color col;
         string label;
@@ -646,11 +679,7 @@ void drawEndScreen(RenderWindow& window, int gameState, int score, sf::Font& fon
     window.draw(p);
 }
 
-void renderGame(RenderWindow& window, int gameState, int menuChoice, string menuMessage,
-    int bricks[][10], int rows, int cols,
-    RectangleShape& paddle, CircleShape& ball,
-    int score, int lives, sf::Font& font, bool isLaunched,
-    bool puActive[], float puX[], float puY[], int puType[])
+void renderGame(RenderWindow& window, int gameState, int menuChoice, string menuMessage,int bricks[][10], int rows, int cols,RectangleShape& paddle, CircleShape& ball,int score, int lives, sf::Font& font, bool isLaunched,bool puActive[], float puX[], float puY[], int puType[])
 {
     window.clear(Color(15, 15, 40));
 
@@ -690,7 +719,7 @@ int main()
 
     RenderWindow window(
         VideoMode({ 600, 700 }),
-        "Block Buster"
+        "Block Buster by bit hunters "
     );
     window.setFramerateLimit(60);
 
@@ -736,42 +765,32 @@ int main()
     bool puActive[8];
     float puX[8], puY[8];
     int puType[8];
-    for (int i = 0; i < 8; i++) puActive[i] = false;
+    for (int i = 0; i < 8; i++) 
+        puActive[i] = false;
     int wideTimer = 0, slowTimer = 0;
 
     while (window.isOpen())
     {
-        handleEvents(window, gameState, menuChoice, menuMessage,
-            isLaunched, dx, dy, score, lives, bricks, rows, cols,
-            paddleX, paddleW, ballX, ballY,
-            puActive, wideTimer, slowTimer);
+        handleEvents(window, gameState, menuChoice, menuMessage,isLaunched, dx, dy, score, lives, bricks, rows, cols,paddleX, paddleW, ballX, ballY,puActive, wideTimer, slowTimer);
 
         if (gameState == 1)
         {
             updatePaddle(paddleX, paddleY, paddleW, windX, paddle);
-            updatePowerUps(puActive, puX, puY, puType,
-                paddleX, paddleY, paddleH, paddleW, lives, wideTimer, slowTimer);
-            updateBall(isLaunched, ballX, ballY, ballD,
-                paddleX, paddleY, paddleW, paddleH,
-                windX, windY, dx, dy, ball,
-                rows, cols, bricks, score,
-                puActive, puX, puY, puType, slowTimer);
-            lifecount(lives, isLaunched, ballX, ballY,
-                paddleX, paddleY, paddleW, ballD, windY,
-                puActive, wideTimer, slowTimer);
+            updatePowerUps(puActive, puX, puY, puType,paddleX, paddleY, paddleH, paddleW, lives, wideTimer, slowTimer);
+            updateBall(isLaunched, ballX, ballY, ballD,paddleX, paddleY, paddleW, paddleH,windX, windY, dx, dy, ball,rows, cols, bricks, score,puActive, puX, puY, puType, slowTimer);
+            lifecount(lives, isLaunched, ballX, ballY,paddleX, paddleY, paddleW, ballD, windY,puActive, wideTimer, slowTimer);
             checkWinLose(gameState, lives, bricks);
         }
 
         // Keep paddle shape in sync with current paddleW every frame
-        if (paddleX > windX - paddleW) paddleX = windX - paddleW;
-        if (paddleX < 0.f) paddleX = 0.f;
+        if (paddleX > windX - paddleW) 
+            paddleX = windX - paddleW;
+        if (paddleX < 0.f) 
+            paddleX = 0.f;
         paddle.setSize({ paddleW, paddleH });
         paddle.setPosition({ paddleX, paddleY });
 
-        renderGame(window, gameState, menuChoice, menuMessage,
-            bricks, rows, cols, paddle, ball,
-            score, lives, font, isLaunched,
-            puActive, puX, puY, puType);
+        renderGame(window, gameState, menuChoice, menuMessage,bricks, rows, cols, paddle, ball,score, lives, font, isLaunched,puActive, puX, puY, puType);
     }
 
     return 0;
